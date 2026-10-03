@@ -141,6 +141,10 @@ bool mt_handle_packet(size_t payload_len) {
       beep_off();
     }
     return true;
+  case meshtastic_InterdeviceMessage_tone_tag:
+    // fire and forget, like beep
+    tone_play(message.data.tone.frequency_hz, message.data.tone.duration_ms);
+    return true;
   case meshtastic_InterdeviceMessage_i2c_transaction_tag: {
     // Execute a tunneled I2C transaction: an optional write followed by an
     // optional read with repeated start
@@ -298,6 +302,29 @@ bool mt_handle_packet(size_t payload_len) {
         out->status = meshtastic_FileStatus_FILE_IO_ERROR;
         sd_request_verify();
         strncpy(out->message, "write failed", sizeof(out->message) - 1);
+      }
+      count_cache_path[0] = '\0';
+      break;
+    }
+
+    case meshtastic_FileOperation_MKDIR: {
+      invalidate_read_cache();
+      File existing = SD.open(request.filepath, FILE_READ);
+      bool is_dir = existing && existing.isDirectory();
+      bool is_file = existing && !is_dir;
+      if (existing)
+        existing.close();
+      if (is_dir) {
+        out->status = meshtastic_FileStatus_FILE_OK; // already there
+      } else if (is_file) {
+        out->status = meshtastic_FileStatus_FILE_NOT_A_FILE;
+        strncpy(out->message, "a file has that name", sizeof(out->message) - 1);
+      } else if (SD.mkdir(request.filepath)) { // parents included
+        out->status = meshtastic_FileStatus_FILE_OK;
+      } else {
+        out->status = meshtastic_FileStatus_FILE_IO_ERROR;
+        sd_request_verify();
+        strncpy(out->message, "mkdir failed", sizeof(out->message) - 1);
       }
       count_cache_path[0] = '\0';
       break;

@@ -30,7 +30,8 @@ typedef enum _meshtastic_FileOperation {
     meshtastic_FileOperation_GET = 0,
     meshtastic_FileOperation_POST = 1,
     meshtastic_FileOperation_PUT = 2,
-    meshtastic_FileOperation_DELETE = 3
+    meshtastic_FileOperation_DELETE = 3,
+    meshtastic_FileOperation_MKDIR = 4 /* create a directory, parents included; OK when it already exists */
 } meshtastic_FileOperation;
 
 /* Outcome of a file or directory operation. The requester must be able to
@@ -162,6 +163,12 @@ typedef struct _meshtastic_I2CResult {
     meshtastic_I2CResult_read_data_t read_data; /* Data read from the device, empty for write-only transactions */
 } meshtastic_I2CResult;
 
+/* A tone on the buzzer. Fire and forget, like beep: there is no response. */
+typedef struct _meshtastic_BuzzerTone {
+    uint32_t frequency_hz; /* 0 = silence, also stops a tone that is still playing */
+    uint32_t duration_ms; /* 0 = until the next tone or beep */
+} meshtastic_BuzzerTone;
+
 typedef PB_BYTES_ARRAY_T(128) meshtastic_InterdeviceMessage_i2c_scan_result_t;
 /* Main message for interdevice communication */
 typedef struct _meshtastic_InterdeviceMessage {
@@ -194,6 +201,8 @@ typedef struct _meshtastic_InterdeviceMessage {
      on its own and kept mounted; after one it stays released until a mount
      is asked for. */
         meshtastic_SdCommand sd_command;
+        /* Request: play a tone on the buzzer (no response) */
+        meshtastic_BuzzerTone tone;
     } data;
     /* Correlates a response with its request: responses echo the id of the
  request they answer. 0 for unsolicited messages (e.g. the nmea stream). */
@@ -211,8 +220,8 @@ extern "C" {
 #define _meshtastic_InterdeviceVersion_ARRAYSIZE ((meshtastic_InterdeviceVersion)(meshtastic_InterdeviceVersion_INTERDEVICE_VERSION_CURRENT+1))
 
 #define _meshtastic_FileOperation_MIN meshtastic_FileOperation_GET
-#define _meshtastic_FileOperation_MAX meshtastic_FileOperation_DELETE
-#define _meshtastic_FileOperation_ARRAYSIZE ((meshtastic_FileOperation)(meshtastic_FileOperation_DELETE+1))
+#define _meshtastic_FileOperation_MAX meshtastic_FileOperation_MKDIR
+#define _meshtastic_FileOperation_ARRAYSIZE ((meshtastic_FileOperation)(meshtastic_FileOperation_MKDIR+1))
 
 #define _meshtastic_FileStatus_MIN meshtastic_FileStatus_FILE_UNSPECIFIED
 #define _meshtastic_FileStatus_MAX meshtastic_FileStatus_FILE_NOT_A_FILE
@@ -245,6 +254,7 @@ extern "C" {
 
 #define meshtastic_I2CResult_status_ENUMTYPE meshtastic_I2CResult_Status
 
+
 #define meshtastic_InterdeviceMessage_data_ping_ENUMTYPE meshtastic_InterdeviceVersion
 #define meshtastic_InterdeviceMessage_data_pong_ENUMTYPE meshtastic_InterdeviceVersion
 #define meshtastic_InterdeviceMessage_data_sd_command_ENUMTYPE meshtastic_SdCommand
@@ -256,12 +266,14 @@ extern "C" {
 #define meshtastic_I2CTransaction_init_default   {0, {0, {0}}, 0}
 #define meshtastic_SdCardInfo_init_default       {0, _meshtastic_SdCardInfo_CardType_MIN, _meshtastic_SdCardInfo_FatType_MIN, 0, 0, 0, 0, 0, 0}
 #define meshtastic_I2CResult_init_default        {_meshtastic_I2CResult_Status_MIN, {0, {0}}}
+#define meshtastic_BuzzerTone_init_default       {0, 0}
 #define meshtastic_InterdeviceMessage_init_default {0, {""}, 0}
 #define meshtastic_FileTransfer_init_zero        {_meshtastic_FileOperation_MIN, "", {0, {0}}, _meshtastic_FileStatus_MIN, "", 0, 0, 0}
 #define meshtastic_DirectoryListing_init_zero    {"", 0, {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}, _meshtastic_FileStatus_MIN, "", 0, 0}
 #define meshtastic_I2CTransaction_init_zero      {0, {0, {0}}, 0}
 #define meshtastic_SdCardInfo_init_zero          {0, _meshtastic_SdCardInfo_CardType_MIN, _meshtastic_SdCardInfo_FatType_MIN, 0, 0, 0, 0, 0, 0}
 #define meshtastic_I2CResult_init_zero           {_meshtastic_I2CResult_Status_MIN, {0, {0}}}
+#define meshtastic_BuzzerTone_init_zero          {0, 0}
 #define meshtastic_InterdeviceMessage_init_zero  {0, {""}, 0}
 
 /* Field tags (for use in manual encoding/decoding) */
@@ -293,6 +305,8 @@ extern "C" {
 #define meshtastic_SdCardInfo_unformatted_tag    9
 #define meshtastic_I2CResult_status_tag          1
 #define meshtastic_I2CResult_read_data_tag       2
+#define meshtastic_BuzzerTone_frequency_hz_tag   1
+#define meshtastic_BuzzerTone_duration_ms_tag    2
 #define meshtastic_InterdeviceMessage_nmea_tag   1
 #define meshtastic_InterdeviceMessage_beep_tag   2
 #define meshtastic_InterdeviceMessage_i2c_transaction_tag 3
@@ -307,6 +321,7 @@ extern "C" {
 #define meshtastic_InterdeviceMessage_pong_tag   12
 #define meshtastic_InterdeviceMessage_nack_tag   13
 #define meshtastic_InterdeviceMessage_sd_command_tag 14
+#define meshtastic_InterdeviceMessage_tone_tag   16
 #define meshtastic_InterdeviceMessage_id_tag     15
 
 /* Struct field encoding specification for nanopb */
@@ -358,6 +373,12 @@ X(a, STATIC,   SINGULAR, BYTES,    read_data,         2)
 #define meshtastic_I2CResult_CALLBACK NULL
 #define meshtastic_I2CResult_DEFAULT NULL
 
+#define meshtastic_BuzzerTone_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, UINT32,   frequency_hz,      1) \
+X(a, STATIC,   SINGULAR, UINT32,   duration_ms,       2)
+#define meshtastic_BuzzerTone_CALLBACK NULL
+#define meshtastic_BuzzerTone_DEFAULT NULL
+
 #define meshtastic_InterdeviceMessage_FIELDLIST(X, a) \
 X(a, STATIC,   ONEOF,    STRING,   (data,nmea,data.nmea),   1) \
 X(a, STATIC,   ONEOF,    UINT32,   (data,beep,data.beep),   2) \
@@ -373,7 +394,8 @@ X(a, STATIC,   ONEOF,    UENUM,    (data,ping,data.ping),  11) \
 X(a, STATIC,   ONEOF,    UENUM,    (data,pong,data.pong),  12) \
 X(a, STATIC,   ONEOF,    BOOL,     (data,nack,data.nack),  13) \
 X(a, STATIC,   ONEOF,    UENUM,    (data,sd_command,data.sd_command),  14) \
-X(a, STATIC,   SINGULAR, UINT32,   id,               15)
+X(a, STATIC,   SINGULAR, UINT32,   id,               15) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (data,tone,data.tone),  16)
 #define meshtastic_InterdeviceMessage_CALLBACK NULL
 #define meshtastic_InterdeviceMessage_DEFAULT NULL
 #define meshtastic_InterdeviceMessage_data_i2c_transaction_MSGTYPE meshtastic_I2CTransaction
@@ -381,12 +403,14 @@ X(a, STATIC,   SINGULAR, UINT32,   id,               15)
 #define meshtastic_InterdeviceMessage_data_file_transfer_MSGTYPE meshtastic_FileTransfer
 #define meshtastic_InterdeviceMessage_data_directory_listing_MSGTYPE meshtastic_DirectoryListing
 #define meshtastic_InterdeviceMessage_data_sd_info_MSGTYPE meshtastic_SdCardInfo
+#define meshtastic_InterdeviceMessage_data_tone_MSGTYPE meshtastic_BuzzerTone
 
 extern const pb_msgdesc_t meshtastic_FileTransfer_msg;
 extern const pb_msgdesc_t meshtastic_DirectoryListing_msg;
 extern const pb_msgdesc_t meshtastic_I2CTransaction_msg;
 extern const pb_msgdesc_t meshtastic_SdCardInfo_msg;
 extern const pb_msgdesc_t meshtastic_I2CResult_msg;
+extern const pb_msgdesc_t meshtastic_BuzzerTone_msg;
 extern const pb_msgdesc_t meshtastic_InterdeviceMessage_msg;
 
 /* Defines for backwards compatibility with code written before nanopb-0.4.0 */
@@ -395,10 +419,12 @@ extern const pb_msgdesc_t meshtastic_InterdeviceMessage_msg;
 #define meshtastic_I2CTransaction_fields &meshtastic_I2CTransaction_msg
 #define meshtastic_SdCardInfo_fields &meshtastic_SdCardInfo_msg
 #define meshtastic_I2CResult_fields &meshtastic_I2CResult_msg
+#define meshtastic_BuzzerTone_fields &meshtastic_BuzzerTone_msg
 #define meshtastic_InterdeviceMessage_fields &meshtastic_InterdeviceMessage_msg
 
 /* Maximum encoded size of messages (where known) */
 #define MESHTASTIC_MESHTASTIC_INTERDEVICE_PB_H_MAX_SIZE meshtastic_InterdeviceMessage_size
+#define meshtastic_BuzzerTone_size               12
 #define meshtastic_DirectoryListing_size         4657
 #define meshtastic_FileTransfer_size             4646
 #define meshtastic_I2CResult_size                261
