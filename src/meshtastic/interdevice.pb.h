@@ -31,7 +31,8 @@ typedef enum _meshtastic_FileOperation {
     meshtastic_FileOperation_POST = 1,
     meshtastic_FileOperation_PUT = 2,
     meshtastic_FileOperation_DELETE = 3,
-    meshtastic_FileOperation_MKDIR = 4 /* create a directory, parents included; OK when it already exists */
+    meshtastic_FileOperation_MKDIR = 4, /* create a directory, parents included; OK when it already exists */
+    meshtastic_FileOperation_RMDIR = 5 /* remove an empty directory; OK when it is already gone */
 } meshtastic_FileOperation;
 
 /* Outcome of a file or directory operation. The requester must be able to
@@ -50,7 +51,8 @@ typedef enum _meshtastic_FileStatus {
  recognize its own chunk as already written after a lost response). */
     meshtastic_FileStatus_FILE_OFFSET_CONFLICT = 5,
     meshtastic_FileStatus_FILE_IO_ERROR = 6,
-    meshtastic_FileStatus_FILE_NOT_A_FILE = 7 /* path is a directory (GET) or not one (listing) */
+    meshtastic_FileStatus_FILE_NOT_A_FILE = 7, /* path is a directory (GET) or not one (listing, RMDIR) */
+    meshtastic_FileStatus_FILE_NOT_EMPTY = 8 /* RMDIR: the directory still has entries */
 } meshtastic_FileStatus;
 
 /* What to do with the SD card of the co-processor */
@@ -220,12 +222,12 @@ extern "C" {
 #define _meshtastic_InterdeviceVersion_ARRAYSIZE ((meshtastic_InterdeviceVersion)(meshtastic_InterdeviceVersion_INTERDEVICE_VERSION_CURRENT+1))
 
 #define _meshtastic_FileOperation_MIN meshtastic_FileOperation_GET
-#define _meshtastic_FileOperation_MAX meshtastic_FileOperation_MKDIR
-#define _meshtastic_FileOperation_ARRAYSIZE ((meshtastic_FileOperation)(meshtastic_FileOperation_MKDIR+1))
+#define _meshtastic_FileOperation_MAX meshtastic_FileOperation_RMDIR
+#define _meshtastic_FileOperation_ARRAYSIZE ((meshtastic_FileOperation)(meshtastic_FileOperation_RMDIR+1))
 
 #define _meshtastic_FileStatus_MIN meshtastic_FileStatus_FILE_UNSPECIFIED
-#define _meshtastic_FileStatus_MAX meshtastic_FileStatus_FILE_NOT_A_FILE
-#define _meshtastic_FileStatus_ARRAYSIZE ((meshtastic_FileStatus)(meshtastic_FileStatus_FILE_NOT_A_FILE+1))
+#define _meshtastic_FileStatus_MAX meshtastic_FileStatus_FILE_NOT_EMPTY
+#define _meshtastic_FileStatus_ARRAYSIZE ((meshtastic_FileStatus)(meshtastic_FileStatus_FILE_NOT_EMPTY+1))
 
 #define _meshtastic_SdCommand_MIN meshtastic_SdCommand_SD_COMMAND_UNSPECIFIED
 #define _meshtastic_SdCommand_MAX meshtastic_SdCommand_SD_FORMAT
